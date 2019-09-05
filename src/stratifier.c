@@ -405,8 +405,6 @@ struct stratifier_data {
 
 	char txnbin[48];
 	int txnlen;
-	char dontxnbin[48];
-	int dontxnlen;
 
 	pool_stats_t stats;
 	/* Protects changes to pool stats */
@@ -618,12 +616,7 @@ static void generate_coinbase(const ckpool_t *ckp, workbase_t *wb)
 
 	// Generation value
 	g64 = wb->coinbasevalue;
-	if (ckp->donvalid) {
-		d64 = g64 / 200; // 0.5% donation
-		g64 -= d64; // To guarantee integers add up to the original coinbasevalue
-		wb->coinb2bin[wb->coinb2len++] = 2 + wb->insert_witness;
-	} else
-		wb->coinb2bin[wb->coinb2len++] = 1 + wb->insert_witness;
+    wb->coinb2bin[wb->coinb2len++] = 1 + wb->insert_witness;
 
 	u64 = (uint64_t *)&wb->coinb2bin[wb->coinb2len];
 	*u64 = htole64(g64);
@@ -643,16 +636,6 @@ static void generate_coinbase(const ckpool_t *ckp, workbase_t *wb)
 
 		hex2bin(&wb->coinb2bin[wb->coinb2len], wb->witnessdata, witnessdata_size);
 		wb->coinb2len += witnessdata_size;
-	}
-
-	if (ckp->donvalid) {
-		u64 = (uint64_t *)&wb->coinb2bin[wb->coinb2len];
-		*u64 = htole64(d64);
-		wb->coinb2len += 8;
-
-		wb->coinb2bin[wb->coinb2len++] = sdata->dontxnlen;
-		memcpy(wb->coinb2bin + wb->coinb2len, sdata->dontxnbin, sdata->dontxnlen);
-		wb->coinb2len += sdata->dontxnlen;
 	}
 
 	wb->coinb2len += 4; // Blank lock
@@ -2384,7 +2367,6 @@ static sdata_t *duplicate_sdata(const sdata_t *sdata)
 
 	/* Copy the transaction binaries for workbase creation */
 	memcpy(dsdata->txnbin, sdata->txnbin, 48);
-	memcpy(dsdata->dontxnbin, sdata->dontxnbin, 48);
 
 	/* Use the same work queues for all subproxies */
 	dsdata->ssends = sdata->ssends;
@@ -8691,11 +8673,6 @@ void *stratifier(void *arg)
 		/* Store this for use elsewhere */
 		hex2bin(scriptsig_header_bin, scriptsig_header, 41);
 		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->btcaddress, ckp->script, ckp->segwit);
-
-		if (generator_checkaddr(ckp, ckp->donaddress, &ckp->donscript, &ckp->donsegwit)) {
-			ckp->donvalid = true;
-			sdata->dontxnlen = address_to_txn(sdata->dontxnbin, ckp->donaddress, ckp->donscript, ckp->donsegwit);
-		}
 	}
 
 	randomiser = time(NULL);

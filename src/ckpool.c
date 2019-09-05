@@ -1818,9 +1818,8 @@ int main(int argc, char **argv)
 			ckp.btcdpass[i] = strdup("pass");
 	}
 
-	ckp.donaddress = "14BMjogz69qe8hk9thyzbmR5pg34mVKB1e";
 	if (!ckp.btcaddress)
-		ckp.btcaddress = ckp.donaddress;
+        quit(0, "BCH address is not set");
 	if (!ckp.blockpoll)
 		ckp.blockpoll = 100;
 	if (!ckp.nonce1length)
