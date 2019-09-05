@@ -114,7 +114,6 @@ struct user_instance {
 	char *secondaryuserid;
 	bool btcaddress;
 	bool script;
-	bool segwit;
 
 	/* A linked list of all connected instances of this user */
 	stratum_instance_t *clients;
@@ -540,8 +539,6 @@ static void info_msg_entries(char_entry_t **entries)
 	}
 }
 
-static const int witnessdata_size = 36; // commitment header + hash
-
 static void generate_coinbase(const ckpool_t *ckp, workbase_t *wb)
 {
 	uint64_t *u64, g64, d64 = 0;
@@ -616,7 +613,7 @@ static void generate_coinbase(const ckpool_t *ckp, workbase_t *wb)
 
 	// Generation value
 	g64 = wb->coinbasevalue;
-    wb->coinb2bin[wb->coinb2len++] = 1 + wb->insert_witness;
+    wb->coinb2bin[wb->coinb2len++] = 1;
 
 	u64 = (uint64_t *)&wb->coinb2bin[wb->coinb2len];
 	*u64 = htole64(g64);
@@ -625,18 +622,6 @@ static void generate_coinbase(const ckpool_t *ckp, workbase_t *wb)
 	wb->coinb2bin[wb->coinb2len++] = sdata->txnlen;
 	memcpy(wb->coinb2bin + wb->coinb2len, sdata->txnbin, sdata->txnlen);
 	wb->coinb2len += sdata->txnlen;
-
-	if (wb->insert_witness) {
-		// 0 value
-		wb->coinb2len += 8;
-
-		wb->coinb2bin[wb->coinb2len++] = witnessdata_size + 2; // total scriptPubKey size
-		wb->coinb2bin[wb->coinb2len++] = 0x6a; // OP_RETURN
-		wb->coinb2bin[wb->coinb2len++] = witnessdata_size;
-
-		hex2bin(&wb->coinb2bin[wb->coinb2len], wb->witnessdata, witnessdata_size);
-		wb->coinb2len += witnessdata_size;
-	}
 
 	wb->coinb2len += 4; // Blank lock
 
@@ -1362,65 +1347,13 @@ out:
 	return txns;
 }
 
-static const unsigned char witness_nonce[32] = {0};
-static const int witness_nonce_size = sizeof(witness_nonce);
-static const unsigned char witness_header[] = {0xaa, 0x21, 0xa9, 0xed};
-static const int witness_header_size = sizeof(witness_header);
-
-static void gbt_witness_data(workbase_t *wb, json_t *txn_array)
-{
-	int i, binlen, txncount = json_array_size(txn_array);
-	const char* hash;
-	json_t *arr_val;
-	uchar *hashbin;
-
-	binlen = txncount * 32 + 32;
-	hashbin = alloca(binlen + 32);
-	memset(hashbin, 0, 32);
-
-	for (i = 0; i < txncount; i++) {
-		char binswap[32];
-
-		arr_val = json_array_get(txn_array, i);
-		hash = json_string_value(json_object_get(arr_val, "hash"));
-		if (unlikely(!hash)) {
-			LOGERR("Hash missing for transaction");
-			return;
-		}
-		if (!hex2bin(binswap, hash, 32)) {
-			LOGERR("Failed to hex2bin hash in gbt_witness_data");
-			return;
-		}
-		bswap_256(hashbin + 32 + 32 * i, binswap);
-	}
-
-	// Build merkle root (copied from libblkmaker)
-	for (txncount++ ; txncount > 1 ; txncount /= 2) {
-		if (txncount % 2) {
-			// Odd number, duplicate the last
-			memcpy(hashbin + 32 * txncount, hashbin + 32 * (txncount - 1), 32);
-			txncount++;
-		}
-		for (i = 0; i < txncount; i += 2) {
-			// We overlap input and output here, on the first pair
-			gen_hash(hashbin + 32 * i, hashbin + 32 * (i / 2), 64);
-		}
-	}
-
-	memcpy(hashbin + 32, &witness_nonce, witness_nonce_size);
-	gen_hash(hashbin, hashbin + witness_header_size, 32 + witness_nonce_size);
-	memcpy(hashbin, witness_header, witness_header_size);
-	__bin2hex(wb->witnessdata, hashbin, 32 + witness_header_size);
-	wb->insert_witness = true;
-}
-
 /* This function assumes it will only receive a valid json gbt base template
  * since checking should have been done earlier, and creates the base template
  * for generating work templates. This is a ckmsgq so all uses of this function
  * are serialised. */
 static void block_update(ckpool_t *ckp, int *prio)
 {
-	const char* witnessdata_check, *rule;
+	const char* rule;
 	json_t *txn_array, *rules_array;
 	sdata_t *sdata = ckp->sdata;
 	bool new_block = false;
@@ -1447,7 +1380,6 @@ retry:
 	txn_array = json_object_get(wb->json, "transactions");
 	txns = wb_merkle_bin_txns(ckp, sdata, wb, txn_array, true);
 
-	wb->insert_witness = false;
 	rules_array = json_object_get(wb->json, "rules");
 
 	if (rules_array) {
@@ -1459,17 +1391,6 @@ retry:
 				continue;
 			if (*rule == '!')
 				rule++;
-			if (safecmp(rule, "segwit")) {
-				witnessdata_check = json_string_value(json_object_get(wb->json, "default_witness_commitment"));
-				gbt_witness_data(wb, txn_array);
-				// Verify against the pre-calculated value if it exists. Skip the size/OP_RETURN bytes.
-				if (likely(witnessdata_check)) {
-					if (wb->insert_witness && witnessdata_check[0] && safecmp(witnessdata_check + 4, wb->witnessdata) != 0)
-						LOGERR("Witness from btcd: %s. Calculated Witness: %s", witnessdata_check + 4, wb->witnessdata);
-				} else
-					LOGNOTICE("Segwit rules returned but no default_witness_commitment to check witness data");
-				break;
-			}
 		}
 	}
 
@@ -5315,7 +5236,7 @@ static user_instance_t *generate_user(ckpool_t *ckp, stratum_instance_t *client,
 
 	/* Is this a btc address based username? */
 	if (!ckp->proxy && (new_user || !user->btcaddress))
-		user->btcaddress = generator_checkaddr(ckp, username, &user->script, &user->segwit);
+		user->btcaddress = generator_checkaddr(ckp, username, &user->script);
 	if (new_user) {
 		LOGNOTICE("Added new user %s%s", username, user->btcaddress ?
 			  " as address based registration" : "");
@@ -6869,7 +6790,7 @@ static user_instance_t *generate_remote_user(ckpool_t *ckp, const char *workerna
 
 	/* Is this a btc address based username? */
 	if (!ckp->proxy && (new_user || !user->btcaddress) && (len > 26 && len < 35))
-		user->btcaddress = generator_checkaddr(ckp, username, &user->script, &user->segwit);
+		user->btcaddress = generator_checkaddr(ckp, username, &user->script);
 	if (new_user) {
 		LOGNOTICE("Added new remote user %s%s", username, user->btcaddress ?
 			  " as address based registration" : "");
@@ -8665,14 +8586,14 @@ void *stratifier(void *arg)
 		cksleep_ms(10);
 
 	if (!ckp->proxy) {
-		if (!generator_checkaddr(ckp, ckp->btcaddress, &ckp->script, &ckp->segwit)) {
+		if (!generator_checkaddr(ckp, ckp->btcaddress, &ckp->script)) {
 			LOGEMERG("Fatal: btcaddress invalid according to bitcoind");
 			goto out;
 		}
 
 		/* Store this for use elsewhere */
 		hex2bin(scriptsig_header_bin, scriptsig_header, 41);
-		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->btcaddress, ckp->script, ckp->segwit);
+		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->btcaddress, ckp->script);
 	}
 
 	randomiser = time(NULL);
