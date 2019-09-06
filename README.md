@@ -1,3 +1,18 @@
+
+bchpool
+===
+
+Patched version of [ckpool](https://bitbucket.org/ckolivas/ckpool/) for
+supporting Bitcoin Cash instead of Bitcoin.
+
+* Removes segwit
+* Adds larger merkle tree support (for mining 32MB blocks)
+* TODO: Add cashaddress
+
+Original README follows:
+
+---
+
 CKPOOL + CKDB + libckpool by Con Kolivas and Andrew Smith.
 
 Ultra low overhead massively scalable multi-process, multi-threaded modular
