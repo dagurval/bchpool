@@ -51,8 +51,8 @@ struct genwork {
 	char *txn_data;
 	char *txn_hashes;
 	int merkles;
-	char merklehash[16][68];
-	char merklebin[16][32];
+	char merklehash[32][68];
+	char merklebin[32][32];
 	json_t *merkle_array;
 
 	/* Template variables, lengths are binary lengths! */
