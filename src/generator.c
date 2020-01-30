@@ -234,8 +234,16 @@ static bool server_alive(ckpool_t *ckp, server_instance_t *si, bool pinging)
 	dealloc(cs->auth);
 	cs->auth = http_base64(userpass);
 	dealloc(userpass);
-	if (!cs->auth) {
-		LOGWARNING("Failed to create base64 auth from %s", userpass);
+	if (!cs->auth)
+	{
+		if (userpass)
+		{
+			LOGWARNING("Failed to create base64 auth from %s", userpass);
+		}
+		else
+		{
+			LOGWARNING("Failed to create base64 auth, userpass is NULL");
+		}
 		return ret;
 	}
 

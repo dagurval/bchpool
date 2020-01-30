@@ -80,7 +80,9 @@ bool validate_address(connsock_t *cs, const char *address, bool *script)
 		goto out;
 	}
 	*script = json_is_true(tmp_val);
+
 	LOGDEBUG("Bitcoin address %s IS valid%s%s", address, *script ? " script" : "");
+
 out:
 	if (val)
 		json_decref(val);
