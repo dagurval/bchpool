@@ -45,4 +45,5 @@ ltmain.sh
 
 libtool
 
-
+src/notifier
+src/libckpool.a
