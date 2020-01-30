@@ -83,7 +83,7 @@ bool validate_address(connsock_t *cs, const char *address, bool *script)
 	tmp_val = json_object_get(res_val, "iswitness");
 	if (unlikely(!tmp_val))
 		goto out;
-	LOGDEBUG("Bitcoin address %s IS valid%s%s", address, *script ? " script" : "");
+	LOGDEBUG("Bitcoin address %s IS valid %s", address, *script ? " script" : "");
 out:
 	if (val)
 		json_decref(val);
