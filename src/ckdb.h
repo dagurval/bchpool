@@ -1837,7 +1837,7 @@ typedef struct seqset {
 // highlimit ratio (shift down bits)
 #define HIGH_SHIFT 8
 // Smallest highlimit allowed
-#define HIGH_MIN 32 
+#define HIGH_MIN 32
 // Smallest _SIZ allowed
 #define BASE_SIZ (HIGH_MIN << HIGH_SHIFT)
 
@@ -2639,7 +2639,7 @@ extern K_TREE *events_ipc_root;
 extern K_TREE *events_hash_root;
 extern K_LIST *events_free;
 extern K_STORE *events_store;
-// Emulate a list for lock checking     
+// Emulate a list for lock checking
 extern K_LIST *event_limits_free;
 
 #define OC_LIMITS "event_limits_"
