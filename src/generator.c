@@ -263,8 +263,8 @@ static bool server_alive(ckpool_t *ckp, server_instance_t *si, bool pinging)
 		goto out;
 	}
 	clear_gbtbase(&gbt);
-	if (!ckp->node && !validate_address(cs, ckp->btcaddress, &ckp->script)) {
-		LOGWARNING("Invalid btcaddress: %s !", ckp->btcaddress);
+	if (!ckp->node && !validate_address(ckp->bchaddress)) {
+		LOGWARNING("Invalid bchaddress: %s !", ckp->bchaddress);
 		goto out;
 	}
 	si->alive = cs->alive = ret = true;
@@ -905,24 +905,6 @@ int generator_getbest(ckpool_t *ckp, char *hash)
 		goto out;
 	}
 	ret = GETBEST_SUCCESS;
-out:
-	return ret;
-}
-
-bool generator_checkaddr(ckpool_t *ckp, const char *addr, bool *script)
-{
-	gdata_t *gdata = ckp->gdata;
-	server_instance_t *si;
-	int ret = false;
-	connsock_t *cs;
-
-	si = gdata->current_si;
-	if (unlikely(!si)) {
-		LOGWARNING("No live current server in generator_checkaddr");
-		goto out;
-	}
-	cs = &si->cs;
-	ret = validate_address(cs, addr, script);
 out:
 	return ret;
 }

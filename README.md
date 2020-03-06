@@ -7,7 +7,7 @@ supporting Bitcoin Cash instead of Bitcoin.
 
 * Removes segwit
 * Adds larger merkle tree support (for mining 32MB blocks)
-* TODO: Add cashaddress
+* Add cashaddress. Use "bchaddress" in config, "btcaddress" is no longer suppoted.
 
 Original README follows:
 
@@ -276,7 +276,7 @@ with the username "user" and password "pass".
 "proxy" : This is an array in the same format as btcd above but is used in
 proxy and passthrough mode to set the upstream pool and is mandatory.
 
-"btcaddress" : This is the bitcoin address to try to generate blocks to.
+"bchaddress" : This is the bitcoin address to try to generate blocks to.
 
 "btcsig" : This is an optional signature to put into the coinbase of mined
 blocks.

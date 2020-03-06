@@ -112,8 +112,7 @@ struct user_instance {
 	char username[128];
 	int id;
 	char *secondaryuserid;
-	bool btcaddress;
-	bool script;
+	bool bchaddress;
 
 	/* A linked list of all connected instances of this user */
 	stratum_instance_t *clients;
@@ -5234,11 +5233,11 @@ static user_instance_t *generate_user(ckpool_t *ckp, stratum_instance_t *client,
 	__inc_worker(sdata,user, worker);
 	ck_wunlock(&sdata->instance_lock);
 
-	/* Is this a btc address based username? */
-	if (!ckp->proxy && (new_user || !user->btcaddress))
-		user->btcaddress = generator_checkaddr(ckp, username, &user->script);
+	/* Is this a bch address based username? */
+	if (!ckp->proxy && (new_user || !user->bchaddress))
+		user->bchaddress = validate_address(username);
 	if (new_user) {
-		LOGNOTICE("Added new user %s%s", username, user->btcaddress ?
+		LOGNOTICE("Added new user %s%s", username, user->bchaddress ?
 			  " as address based registration" : "");
 	}
 
@@ -5342,7 +5341,7 @@ static int send_recv_auth(stratum_instance_t *client)
 	json_set_string(val, "createby", "code");
 	json_set_string(val, "createcode", __func__);
 	json_set_string(val, "createinet", client->address);
-	if (user->btcaddress)
+	if (user->bchaddress)
 		json_msg = ckdb_msg(ckp, sdata, val, ID_ADDRAUTH);
 	else
 		json_msg = ckdb_msg(ckp, sdata, val, ID_AUTH);
@@ -6788,11 +6787,11 @@ static user_instance_t *generate_remote_user(ckpool_t *ckp, const char *workerna
 
 	user = get_create_user(sdata, username, &new_user);
 
-	/* Is this a btc address based username? */
-	if (!ckp->proxy && (new_user || !user->btcaddress) && (len > 26 && len < 35))
-		user->btcaddress = generator_checkaddr(ckp, username, &user->script);
+	/* Is this a bch address based username? */
+	if (!ckp->proxy && (new_user || !user->bchaddress) && (len > 26 && len < 35))
+		user->bchaddress = validate_address(username);
 	if (new_user) {
-		LOGNOTICE("Added new remote user %s%s", username, user->btcaddress ?
+		LOGNOTICE("Added new remote user %s%s", username, user->bchaddress ?
 			  " as address based registration" : "");
 	}
 
@@ -8586,14 +8585,14 @@ void *stratifier(void *arg)
 		cksleep_ms(10);
 
 	if (!ckp->proxy) {
-		if (!generator_checkaddr(ckp, ckp->btcaddress, &ckp->script)) {
-			LOGEMERG("Fatal: btcaddress invalid according to bitcoind");
+		if (!validate_address(ckp->bchaddress)) {
+			LOGEMERG("Fatal: bchaddress invalid");
 			goto out;
 		}
 
 		/* Store this for use elsewhere */
 		hex2bin(scriptsig_header_bin, scriptsig_header, 41);
-		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->btcaddress, ckp->script);
+		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->bchaddress);
 	}
 
 	randomiser = time(NULL);

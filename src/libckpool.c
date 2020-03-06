@@ -36,6 +36,7 @@
 #include "libckpool.h"
 #include "sha2.h"
 #include "utlist.h"
+#include "cash_addr.h"
 
 #ifndef UNIX_PATH_MAX
 #define UNIX_PATH_MAX 108
@@ -1605,43 +1606,6 @@ bool _hex2bin(void *vp, const void *vhexstr, size_t len, const char *file, const
 	return ret;
 }
 
-static const int b58tobin_tbl[] = {
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1,  0,  1,  2,  3,  4,  5,  6,  7,  8, -1, -1, -1, -1, -1, -1,
-	-1,  9, 10, 11, 12, 13, 14, 15, 16, -1, 17, 18, 19, 20, 21, -1,
-	22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, -1, -1, -1, -1, -1,
-	-1, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, -1, 44, 45, 46,
-	47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57
-};
-
-/* b58bin should always be at least 25 bytes long and already checked to be
- * valid. */
-void b58tobin(char *b58bin, const char *b58)
-{
-	uint32_t c, bin32[7];
-	int len, i, j;
-	uint64_t t;
-
-	memset(bin32, 0, 7 * sizeof(uint32_t));
-	len = strlen((const char *)b58);
-	for (i = 0; i < len; i++) {
-		c = b58[i];
-		c = b58tobin_tbl[c];
-		for (j = 6; j >= 0; j--) {
-			t = ((uint64_t)bin32[j]) * 58 + c;
-			c = (t & 0x3f00000000ull) >> 32;
-			bin32[j] = t & 0xffffffffull;
-		}
-	}
-	*(b58bin++) = bin32[0] & 0xff;
-	for (i = 1; i < 7; i++) {
-		*((uint32_t *)b58bin) = htobe32(bin32[i]);
-		b58bin += sizeof(uint32_t);
-	}
-}
-
 /* Does a safe string comparison tolerating zero length and NULL strings */
 int safecmp(const char *a, const char *b)
 {
@@ -1730,38 +1694,76 @@ char *http_base64(const char *src)
 	return (str);
 }
 
-static int address_to_pubkeytxn(char *pkh, const char *addr)
+static int address_to_pubkeytxn(char *scriptpubkey, const char *pkh)
 {
-	char b58bin[25] = {};
-
-	b58tobin(b58bin, addr);
-	pkh[0] = 0x76;
-	pkh[1] = 0xa9;
-	pkh[2] = 0x14;
-	memcpy(&pkh[3], &b58bin[1], 20);
-	pkh[23] = 0x88;
-	pkh[24] = 0xac;
+	scriptpubkey[0] = 0x76;
+	scriptpubkey[1] = 0xa9;
+	scriptpubkey[2] = 0x14;
+	memcpy(&scriptpubkey[3], &pkh[0], 20);
+	scriptpubkey[23] = 0x88;
+	scriptpubkey[24] = 0xac;
 	return 25;
 }
 
-static int address_to_scripttxn(char *psh, const char *addr)
+static int address_to_scripttxn(char *scriptpubkey, const char *sh)
 {
-	char b58bin[25] = {};
-
-	b58tobin(b58bin, addr);
-	psh[0] = 0xa9;
-	psh[1] = 0x14;
-	memcpy(&psh[2], &b58bin[1], 20);
-	psh[22] = 0x87;
+	scriptpubkey[0] = 0xa9;
+	scriptpubkey[1] = 0x14;
+	memcpy(&scriptpubkey[2], &sh[0], 20);
+	scriptpubkey[22] = 0x87;
 	return 23;
 }
 
+bool validate_address(const char* addr) {
+    char buff[512];
+    return address_to_txn(buff, addr) != 0;
+}
+
 /* Convert an address to a transaction and return the length of the transaction */
-int address_to_txn(char *p2h, const char *addr, const bool script)
+int address_to_txn(char *p2h, const char *addr)
 {
-	if (script)
-		return address_to_scripttxn(p2h, addr);
-	return address_to_pubkeytxn(p2h, addr);
+    uint8_t payload[65];
+    size_t payload_len;
+
+    uint8_t hrpstr[32];
+    char* hrpend = strchr(addr, ':');
+    if (hrpend == NULL) {
+        LOGWARNING("address is missing :");
+        return 0;
+    }
+    size_t hrplen = hrpend - addr;
+    if (hrplen >= 32) {
+        LOGWARNING("invalid address hrp");
+        return 0;
+    }
+    memcpy(&hrpstr[0], &addr[0], hrplen);
+    hrpstr[hrplen] = '\0';
+
+    if (!cash_addr_decode(&payload[0], &payload_len, &hrpstr[0], addr)) {
+        LOGWARNING("failed to decode cashaddr");
+        return 0;
+    }
+
+    if (payload_len != 21) {
+        LOGWARNING("expected a 1 byte version + 20 byte hash. Got %d", payload_len);
+        return 0;
+    }
+    uint8_t version = payload[0];
+    if (version & 0x80) {
+        LOGWARNING("invalid address - first bit is reserved");
+        return 0;
+    }
+    const uint8_t TYPE_PUBKEY = 0;
+    const uint8_t TYPE_SCRIPT = 1;
+    uint8_t type = version >> 3 & 0x1f;
+	if (type == TYPE_SCRIPT) {
+		return address_to_scripttxn(p2h, &payload[1]);
+    }
+    if (type == TYPE_PUBKEY) {
+	    return address_to_pubkeytxn(p2h, &payload[1]);
+    }
+    LOGWARNING("invalid address - expected P2PKH or P2SH");
+    return 0;
 }
 
 /*  For encoding nHeight into coinbase, return how many bytes were used */

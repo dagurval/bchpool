@@ -1474,7 +1474,7 @@ static void parse_config(ckpool_t *ckp)
 		if (arr_size)
 			parse_btcds(ckp, arr_val, arr_size);
 	}
-	json_get_string(&ckp->btcaddress, json_conf, "btcaddress");
+	json_get_string(&ckp->bchaddress, json_conf, "bchaddress");
 	json_get_string(&ckp->btcsig, json_conf, "btcsig");
 	if (ckp->btcsig && strlen(ckp->btcsig) > 38) {
 		LOGWARNING("Signature %s too long, truncating to 38 bytes", ckp->btcsig);
@@ -1818,8 +1818,8 @@ int main(int argc, char **argv)
 			ckp.btcdpass[i] = strdup("pass");
 	}
 
-	if (!ckp.btcaddress)
-        quit(0, "BCH address is not set");
+	if (!ckp.bchaddress)
+        quit(0, "'bchaddress' is not set");
 	if (!ckp.blockpoll)
 		ckp.blockpoll = 100;
 	if (!ckp.nonce1length)

@@ -240,7 +240,7 @@ struct ckpool_instance {
 	int64_t maxdiff; // No default
 
 	/* Coinbase data */
-	char *btcaddress; // Address to mine to
+	char *bchaddress; // Address to mine to
 	bool script; // Address is a script address
 	char *btcsig; // Optional signature to add to coinbase
 
