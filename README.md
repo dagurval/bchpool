@@ -1,29 +1,20 @@
 
-bchpool
-===
+BCHPool
+=======
 
 Patched version of [ckpool](https://bitbucket.org/ckolivas/ckpool/) for
 supporting Bitcoin Cash instead of Bitcoin.
 
 * Removes segwit
 * Adds larger merkle tree support (for mining 32MB blocks)
-* Add cashaddress. Use "bchaddress" in config, "btcaddress" is no longer suppoted.
+* Add cashaddress. Use "bchaddress" in config, "btcaddress" is no longer supported.
 
-Original README follows:
-
----
-
-CKPOOL + CKDB + libckpool by Con Kolivas and Andrew Smith.
 
 Ultra low overhead massively scalable multi-process, multi-threaded modular
 bitcoin mining pool, proxy, passthrough, library and database interface in c
 for Linux.
 
-CKPOOL is code provided free of charge under the GPLv3 license but its development
-is mostly paid for by commissioned funding, and the pool by default contributes
-0.5% of solved blocks in pool mode to the development team. Please consider leaving
-this contribution in the code if you are running it on a pool or contributing to the
-authors listed in AUTHORS if you use this code to aid funding further development.
+BCHPool is code provided free of charge under the GPLv3 license.
 
 ---
 LICENSE:
