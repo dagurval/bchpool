@@ -241,7 +241,6 @@ struct ckpool_instance {
 
 	/* Coinbase data */
 	char *bchaddress; // Address to mine to
-	bool script; // Address is a script address
 	char *btcsig; // Optional signature to add to coinbase
 
 	/* Stratum options */
