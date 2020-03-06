@@ -564,7 +564,7 @@ int safecmp(const char *a, const char *b);
 bool cmdmatch(const char *buf, const char *cmd);
 
 bool validate_address(const char* addr);
-int address_to_txn(char *p2h, const char *addr);
+int address_to_txn(char *p2h, const char *addr, bool verbose);
 int ser_number(uchar *s, int32_t val);
 int get_sernumber(uchar *s);
 bool fulltest(const uchar *hash, const uchar *target);

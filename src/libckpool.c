@@ -1716,11 +1716,11 @@ static int address_to_scripttxn(char *scriptpubkey, const char *sh)
 
 bool validate_address(const char* addr) {
     char buff[512];
-    return address_to_txn(buff, addr) != 0;
+    return address_to_txn(buff, addr, /* verbose */ false) != 0;
 }
 
 /* Convert an address to a transaction and return the length of the transaction */
-int address_to_txn(char *p2h, const char *addr)
+int address_to_txn(char *p2h, const char *addr, bool verbose)
 {
     uint8_t payload[65];
     size_t payload_len;
@@ -1728,29 +1728,34 @@ int address_to_txn(char *p2h, const char *addr)
     uint8_t hrpstr[32];
     char* hrpend = strchr(addr, ':');
     if (hrpend == NULL) {
-        LOGWARNING("address is missing :");
+        if (verbose) { LOGWARNING("address is missing :"); }
         return 0;
     }
     size_t hrplen = hrpend - addr;
     if (hrplen >= 32) {
-        LOGWARNING("invalid address hrp");
+        if (verbose) { LOGWARNING("invalid address hrp"); }
         return 0;
     }
     memcpy(&hrpstr[0], &addr[0], hrplen);
     hrpstr[hrplen] = '\0';
 
     if (!cash_addr_decode(&payload[0], &payload_len, &hrpstr[0], addr)) {
-        LOGWARNING("failed to decode cashaddr");
+        if (verbose) { LOGWARNING("failed to decode cashaddr"); }
         return 0;
     }
 
     if (payload_len != 21) {
-        LOGWARNING("expected a 1 byte version + 20 byte hash. Got %d", payload_len);
+        if (verbose) {
+            LOGWARNING("expected 1 byte version + 20 bytes hash. Got %d bytes.",
+                    payload_len);
+        }
         return 0;
     }
     uint8_t version = payload[0];
     if (version & 0x80) {
-        LOGWARNING("invalid address - first bit is reserved");
+        if (verbose) {
+            LOGWARNING("invalid address - first bit is reserved");
+        }
         return 0;
     }
     const uint8_t TYPE_PUBKEY = 0;
@@ -1762,7 +1767,9 @@ int address_to_txn(char *p2h, const char *addr)
     if (type == TYPE_PUBKEY) {
 	    return address_to_pubkeytxn(p2h, &payload[1]);
     }
-    LOGWARNING("invalid address - expected P2PKH or P2SH");
+    if (verbose) {
+        LOGWARNING("invalid address - expected P2PKH or P2SH");
+    }
     return 0;
 }
 

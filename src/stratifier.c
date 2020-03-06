@@ -8592,7 +8592,7 @@ void *stratifier(void *arg)
 
 		/* Store this for use elsewhere */
 		hex2bin(scriptsig_header_bin, scriptsig_header, 41);
-		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->bchaddress);
+		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->bchaddress, true);
 	}
 
 	randomiser = time(NULL);
