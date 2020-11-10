@@ -19,7 +19,7 @@
 #include "libckpool.h"
 #include "uthash.h"
 
-#define RPC_TIMEOUT 60
+#define RPC_TIMEOUT 180
 
 struct ckpool_instance;
 typedef struct ckpool_instance ckpool_t;
