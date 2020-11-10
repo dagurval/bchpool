@@ -1261,17 +1261,20 @@ static void update_txns(ckpool_t *ckp, sdata_t *sdata, txntable_t *txns, bool lo
 static txntable_t *wb_merkle_bin_txns(ckpool_t *ckp, sdata_t *sdata, workbase_t *wb,
 				      json_t *txn_array, bool local)
 {
-	int i, j, binleft, binlen;
+	int64_t i, j, binleft, binlen;
 	txntable_t *txns = NULL;
 	json_t *arr_val;
-	uchar *hashbin;
+	uchar *hashbin = NULL;
 
 	wb->txns = json_array_size(txn_array);
 	wb->merkles = 0;
-	binlen = wb->txns * 32 + 32;
-	hashbin = alloca(binlen + 32);
+	binlen = wb->txns * 32L + 32L;
+	hashbin = malloc(binlen + 32L);
+    if (hashbin == NULL) {
+        goto out;
+    }
 	memset(hashbin, 0, 32);
-	binleft = binlen / 32;
+	binleft = binlen / 32L;
 	if (wb->txns) {
 		int len = 1, ofs = 0;
 		const char *txn;
@@ -1343,6 +1346,9 @@ static txntable_t *wb_merkle_bin_txns(ckpool_t *ckp, sdata_t *sdata, workbase_t 
 	LOGNOTICE("Stored %s workbase with %d transactions", local ? "local" : "remote",
 		  wb->txns);
 out:
+    if (hashbin != NULL) {
+        free(hashbin);
+    }
 	return txns;
 }
 

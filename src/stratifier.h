@@ -47,7 +47,7 @@ struct genwork {
 	uint64_t coinbasevalue;
 	int height;
 	char *flags;
-	int txns;
+	int64_t txns;
 	char *txn_data;
 	char *txn_hashes;
 	int merkles;
